@@ -10,7 +10,6 @@ const OLLAMA_TAGS_URL = `${OLLAMA_HOST}/api/tags`;
 const IGNORED_DIRS = ['node_modules', '.git', 'dist', 'build', '.next', '.pnpm-store', 'package-lock.json'];
 const ALLOWED_EXTENSIONS = ['.js', '.jsx', '.ts', '.tsx', '.json', '.html', '.css', '.txt', '.md'];
 
-// Funkcja pobierająca listę modeli z lokalnej Ollamy
 async function getAvailableModels() {
     try {
         const response = await fetch(OLLAMA_TAGS_URL);
@@ -22,8 +21,8 @@ async function getAvailableModels() {
         }
         return [];
     } catch (error) {
-        console.error("❌ Nie udało się pobrać modeli z Ollamy. Upewnij się, że Ollama działa.");
-        console.error(`Szczegóły błędu: ${error.message}\n`);
+        console.error("❌ Failed to fetch models from Ollama. Make sure Ollama is running.");
+        console.error(`Error details: ${error.message}\n`);
         return [];
     }
 }
@@ -65,35 +64,33 @@ function getDirectSubfolders(dir) {
 }
 
 async function main() {
-    console.log("⏳ Łączenie z Ollama i pobieranie listy modeli...");
+    console.log("⏳ Connecting to Ollama and fetching available models...");
     const models = await getAvailableModels();
 
     if (models.length === 0) {
-        console.log("❌ Brak dostępnych modeli w Ollamie. Pobierz jakiś model (np. `ollama pull qwen2.5-coder:14b`) i spróbuj ponownie.");
+        console.log("❌ No available models found in Ollama. Please pull a model first (e.g., `ollama pull qwen2.5-coder:14b`) and try again.");
         return;
     }
 
-    // 1. Wybór modelu AI
     const { selectedModel } = await inquirer.prompt([
         {
             type: 'list',
             name: 'selectedModel',
-            message: 'Wybierz model Ollama, którego chcesz użyć:',
+            message: 'Select an Ollama model to use:',
             choices: models
         }
     ]);
 
-    console.log(`\n🤖 Wybrany model: ${selectedModel}`);
+    console.log(`\n🤖 Selected Model: ${selectedModel}`);
 
     let currentDir = process.cwd();
     let selectedChoice = "";
     
-    const ALL_PROJECT_OPTION = "📂 [CAŁY TEN FOLDER] (Analizuj everything tutaj)";
-    const GO_UP_OPTION = "⬆️ .. (Przejdź katalog wyżej)";
+    const ALL_PROJECT_OPTION = "📂 [WHOLE DIRECTORY] (Analyze everything here)";
+    const GO_UP_OPTION = "⬆️ .. (Go up a directory)";
 
-    // 2. Pętla nawigacji po katalogach
     while (true) {
-        console.log(`\n🔍 Aktualny folder: ${currentDir}`);
+        console.log(`\n🔍 Current Folder: ${currentDir}`);
         
         const availableFiles = getFilesFromDirRecursive(currentDir);
         const subFolders = getDirectSubfolders(currentDir);
@@ -106,7 +103,7 @@ async function main() {
             {
                 type: 'list',
                 name: 'choice',
-                message: 'Wybierz plik, wejdź głębiej lub dodaj cały ten folder:',
+                message: 'Select a file, enter a subfolder, or ingest the entire directory:',
                 choices: choices,
                 pageSize: 12
             }
@@ -127,7 +124,7 @@ async function main() {
     let contextDescription = "";
 
     if (selectedChoice === ALL_PROJECT_OPTION) {
-        console.log("\n📦 Budowanie kontekstu ze wszystkich plików...");
+        console.log("\n📦 Ingesting context from all matching files...");
         const filesToRead = getFilesFromDirRecursive(currentDir);
         let combinedText = "";
         
@@ -135,54 +132,53 @@ async function main() {
             const fullPath = path.join(currentDir, file);
             try {
                 const content = fs.readFileSync(fullPath, 'utf-8');
-                combinedText += `\n--- PLIK: ${file} ---\n${content}\n--- KONIEC PLIKU ---\n`;
+                combinedText += `\n--- FILE: ${file} ---\n${content}\n--- END OF FILE ---\n`;
             } catch (err) {
-                console.error(`⚠️ Nie udało się odczytać pliku ${file}: ${err.message}`);
+                console.error(`⚠️ Failed to read file ${file}: ${err.message}`);
             }
         });
 
         contextContent = combinedText;
-        contextDescription = `cały folder "${path.basename(currentDir)}" (${filesToRead.length} plików)`;
+        contextDescription = `entire directory "${path.basename(currentDir)}" (${filesToRead.length} files)`;
     } else {
         const fullSelectedPath = path.join(currentDir, selectedChoice);
         contextContent = fs.readFileSync(fullSelectedPath, 'utf-8');
-        contextDescription = `plik "${selectedChoice}"`;
+        contextDescription = `file "${selectedChoice}"`;
     }
 
-    console.log(`\n📖 Wczytano: ${contextDescription} (${contextContent.length} znaków)`);
-    console.log(`🤖 Czatujesz z: ${selectedModel}`);
+    console.log(`\n📖 Loaded context: ${contextDescription} (${contextContent.length} characters)`);
+    console.log(`🤖 Chatting with: ${selectedModel}`);
     console.log("--------------------------------------------------\n");
 
-    // 3. Pętla czatu
     while (true) {
         const { userPrompt } = await inquirer.prompt([
             {
                 type: 'input',
                 name: 'userPrompt',
-                message: 'Ty (wpisz "exit" aby wyjść) >'
+                message: 'You (type "exit" to quit) >'
             }
         ]);
 
         if (!userPrompt || userPrompt.trim().toLowerCase() === 'exit') {
-            console.log("👋 Do zobaczenia!");
+            console.log("👋 Goodbye!");
             break;
         }
 
         let fullPrompt = "";
         if (selectedChoice === ALL_PROJECT_OPTION) {
-            fullPrompt = `Analizujesz kod z folderu: "${currentDir}". Poniżej znajduje się zawartość plików.\n\n${contextContent}\n\nPytanie użytkownika: ${userPrompt}`;
+            fullPrompt = `You are analyzing code from the directory: "${currentDir}". Below is the content of the files.\n\n${contextContent}\n\nUser Question: ${userPrompt}`;
         } else {
-            fullPrompt = `Analizujesz lokalny plik: "${selectedChoice}".\n\nOto zawartość:\n---\n${contextContent}\n---\n\nPytanie użytkownika: ${userPrompt}`;
+            fullPrompt = `You are analyzing a local file: "${selectedChoice}".\n\nContent:\n---\n${contextContent}\n---\n\nUser Question: ${userPrompt}`;
         }
 
-        console.log(`⏳ AI (${selectedModel}) myśli...`);
+        console.log(`⏳ AI (${selectedModel}) is thinking...`);
 
         try {
             const response = await fetch(OLLAMA_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    model: selectedModel, // Przekazujemy wybrany na początku model
+                    model: selectedModel,
                     prompt: fullPrompt,
                     stream: false
                 })
@@ -193,7 +189,7 @@ async function main() {
             console.log("--------------------------------------------------");
 
         } catch (error) {
-            console.error("❌ Błąd połączenia z Ollama:", error.message);
+            console.error("❌ Ollama connection error:", error.message);
         }
     }
 }
