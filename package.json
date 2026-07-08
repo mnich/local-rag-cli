@@ -1,0 +1,22 @@
+{
+  "name": "local-rag-cli",
+  "version": "1.0.0",
+  "description": "An interactive CLI tool that enables seamless analysis of local files and entire project directories using local AI models run via Ollama.",
+  "main": "index.js",
+  "type": "module",
+  "author": "Artur Leśniewski <arturlesniewski@gmail.com>",
+  "license": "MIT",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "ollama",
+    "cli",
+    "ai",
+    "developer-tools",
+    "local-llm"
+  ],
+  "dependencies": {
+    "inquirer": "^9.3.8"
+  }
+}

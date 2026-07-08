@@ -1,0 +1,10 @@
+# Paczki i zależności Node
+node_modules/
+npm-debug.log*
+
+# Pliki systemowe
+.DS_Store
+Thumbs.db
+
+# Pliki środowiskowe (jeśli kiedyś dodasz klucze API)
+.env
